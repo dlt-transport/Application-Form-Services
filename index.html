@@ -2,10 +2,20 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
+  <!-- 🟢 บังคับให้มือถือแสดงผลเต็มจอพอดีตัวเครื่อง -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบบริการแบบฟอร์มคำขอ - กรมการขนส่งทางบก</title>
   <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; font-family: sans-serif; }
+    /* 🟢 ตั้งค่าพื้นฐานให้ขยายเต็มหน้าจอ 100% ทั้งมือถือและเดสก์ท็อป */
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: #f8fafc; 
+      font-family: 'Sarabun', sans-serif, system-ui;
+      overflow-x: hidden;
+    }
     #loading-screen {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100vh; color: #581c87; gap: 14px;
@@ -16,6 +26,13 @@
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 🟢 ป้องกันไม่ให้หน้าเว็บถูกบีบเมื่อแสดงผลผ่าน fetch หรือ iframe */
+    iframe, .content-container {
+      width: 100% !important;
+      height: 100% !important;
+      border: none;
+    }
   </style>
 </head>
 <body>
@@ -25,16 +42,13 @@
   </div>
 
   <script>
-    // ลิงก์ Web App (/exec) ของคุณ (ไม่มี /u/1/)
     const GAS_EXEC_URL = "https://script.google.com/macros/s/AKfycbzVp7J3B0Pm1hBi8h-fZHX4qMjgUrOac5JmombOwKZ9tJ_GXdmJ1ZvOcp7pN_dnJY90xw/exec";
 
-    // หากถูกฝังอยู่ในหน้าตู้น้องนำทาง (Ai-Digital-Kiosk) ให้เติม ?mode=kiosk อัตโนมัติ
     if (window.self !== window.top && !window.location.search.includes('mode=kiosk')) {
       const newUrl = window.location.pathname + (window.location.search ? window.location.search + '&mode=kiosk' : '?mode=kiosk');
       window.history.replaceState(null, '', newUrl);
     }
 
-    // สคริปต์จำลอง google.script.run ที่ตัดคุกกี้บัญชี Google ทิ้ง 100% (credentials: 'omit')
     const gasBridgeScript = `
       <script>
         window.GAS_EXEC_URL = "${GAS_EXEC_URL}";
@@ -61,7 +75,6 @@
       <\/script>
     `;
 
-    // ดึงหน้าเว็บแบบฟอร์มโดยไม่ส่งคุกกี้บัญชี Google (credentials: 'omit')
     fetch(GAS_EXEC_URL, {
       method: "POST",
       credentials: "omit",
@@ -70,7 +83,13 @@
     .then(r => r.json())
     .then(res => {
       if (res.success && res.html) {
-        const finalHtml = res.html.replace("<head>", "<head>" + gasBridgeScript);
+        // แทรก meta viewport และสไตล์เพิ่มเติมเพื่อให้หน้าเว็บยืดหยุ่นบนมือถือ
+        let finalHtml = res.html;
+        if (!finalHtml.includes('viewport')) {
+          finalHtml = finalHtml.replace("<head>", "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+        }
+        finalHtml = finalHtml.replace("<head>", "<head>" + gasBridgeScript);
+        
         document.open();
         document.write(finalHtml);
         document.close();
