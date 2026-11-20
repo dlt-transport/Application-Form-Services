@@ -2,17 +2,15 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <!-- 🟢 บังคับให้มือถือแสดงผลเต็มจอพอดีตัวเครื่อง -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบบริการแบบฟอร์มคำขอ - กรมการขนส่งทางบก</title>
+  <title>ระบบบริการแบบฟอร์มคำขอ - ศูนย์ราชการสะดวก (Government Easy Contact Center)</title>
   <style>
-    /* 🟢 ตั้งค่าพื้นฐานให้ขยายเต็มหน้าจอ 100% ทั้งมือถือและเดสก์ท็อป */
-    body, html { 
-      margin: 0; 
-      padding: 0; 
-      width: 100%; 
-      height: 100%; 
-      background: #f8fafc; 
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #f8fafc;
       font-family: 'Sarabun', sans-serif, system-ui;
       overflow-x: hidden;
     }
@@ -27,7 +25,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* 🟢 ป้องกันไม่ให้หน้าเว็บถูกบีบเมื่อแสดงผลผ่าน fetch หรือ iframe */
     iframe, .content-container {
       width: 100% !important;
       height: 100% !important;
@@ -53,23 +50,27 @@
       <script>
         window.GAS_EXEC_URL = "${GAS_EXEC_URL}";
         function createGasRunner(successHandler, failureHandler) {
-          const callServer = (action, args) => {
+          const callServer = function(action, args) {
             fetch(window.GAS_EXEC_URL, {
               method: "POST",
               credentials: "omit",
               body: JSON.stringify({ action: action, args: args })
             })
-            .then(r => r.json())
-            .then(res => { if (successHandler) successHandler(res); })
-            .catch(err => { if (failureHandler) failureHandler(err); });
+            .then(function(r) { return r.json(); })
+            .then(function(res) { if (successHandler) successHandler(res); })
+            .catch(function(err) { if (failureHandler) failureHandler(err); });
           };
-          return {
-            withSuccessHandler: (fn) => createGasRunner(fn, failureHandler),
-            withFailureHandler: (fn) => createGasRunner(successHandler, fn),
-            extractIdCardData: (...args) => callServer("extractIdCardData", args),
-            extractVehicleData: (...args) => callServer("extractVehicleData", args),
-            generateStatelessPDF: (...args) => callServer("generateStatelessPDF", args)
-          };
+          return new Proxy({}, {
+            get: function(target, prop) {
+              if (prop === "withSuccessHandler") return function(fn) { return createGasRunner(fn, failureHandler); };
+              if (prop === "withFailureHandler") return function(fn) { return createGasRunner(successHandler, fn); };
+              if (typeof prop === "symbol" || prop === "then") return undefined;
+              return function() {
+                var args = Array.prototype.slice.call(arguments);
+                callServer(String(prop), args);
+              };
+            }
+          });
         }
         window.google = { script: { run: createGasRunner(null, null) } };
       <\/script>
@@ -83,13 +84,12 @@
     .then(r => r.json())
     .then(res => {
       if (res.success && res.html) {
-        // แทรก meta viewport และสไตล์เพิ่มเติมเพื่อให้หน้าเว็บยืดหยุ่นบนมือถือ
         let finalHtml = res.html;
         if (!finalHtml.includes('viewport')) {
           finalHtml = finalHtml.replace("<head>", "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
         }
         finalHtml = finalHtml.replace("<head>", "<head>" + gasBridgeScript);
-        
+
         document.open();
         document.write(finalHtml);
         document.close();
